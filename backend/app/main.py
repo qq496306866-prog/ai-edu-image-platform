@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis import Redis
 from sqlalchemy import text
 
+from app import models  # noqa: F401
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
