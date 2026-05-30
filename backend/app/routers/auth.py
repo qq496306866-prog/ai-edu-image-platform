@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, hash_password, verify_password
 from app.dependencies import get_current_user, get_db
-from app.models import User
-from app.schemas import Token, UserCreate, UserLogin, UserRead
+from app.models import CreditTransaction, User
+from app.schemas import CreditTransactionRead, Token, UserCreate, UserLogin, UserRead
 from app.services.credits import create_initial_credit, ensure_user_credit
 
 router = APIRouter(tags=["auth"])
@@ -45,3 +45,17 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
     db.commit()
     db.refresh(current_user)
     return _user_read(current_user, credit.balance)
+
+
+@router.get("/api/credits/transactions", response_model=list[CreditTransactionRead])
+def list_credit_transactions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[CreditTransaction]:
+    statement = (
+        select(CreditTransaction)
+        .where(CreditTransaction.user_id == current_user.id)
+        .order_by(CreditTransaction.created_at.desc())
+        .limit(50)
+    )
+    return list(db.scalars(statement).all())
