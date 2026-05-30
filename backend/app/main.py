@@ -8,6 +8,7 @@ from app.db.base import Base
 from app.db.session import engine
 from app import models  # noqa: F401
 from app.routers.auth import router as auth_router
+from app.routers.jobs import router as jobs_router
 from app.routers.uploads import router as uploads_router
 
 settings = get_settings()
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(jobs_router)
 app.include_router(uploads_router)
 
 
