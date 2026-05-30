@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     image_model: str = ""
     image_api_timeout_seconds: float = 60.0
     image_api_retry_count: int = 2
+    mock_image_delay_seconds: float = 0.0
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
