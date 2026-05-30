@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from redis import Redis
 from sqlalchemy import text
 
@@ -12,8 +15,10 @@ from app.routers.jobs import router as jobs_router
 from app.routers.uploads import router as uploads_router
 
 settings = get_settings()
+Path(settings.generated_dir).mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="AI Edu Image Platform API")
+app.mount("/media/generated", StaticFiles(directory=settings.generated_dir), name="generated-media")
 
 app.add_middleware(
     CORSMiddleware,
