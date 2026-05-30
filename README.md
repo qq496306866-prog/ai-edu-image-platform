@@ -11,6 +11,7 @@ AI 教辅批量生图平台第一版 MVP。
 - 结果图片在线预览
 - 生成图片 ZIP 下载
 - 基础点数系统：新用户 20 点，每张图消耗 1 点，失败自动返还
+- 可通过 `IMAGE_PROVIDER=real` 切换到真实生图 API
 
 ## Tech Stack
 
@@ -85,6 +86,27 @@ Generated images are stored under:
 ```text
 storage/generated/{job_id}/{item_id}.jpg
 ```
+
+## Image Provider
+
+The default provider is mock and does not call any external API:
+
+```env
+IMAGE_PROVIDER=mock
+```
+
+To use a real OpenAI-compatible image generation endpoint, configure:
+
+```env
+IMAGE_PROVIDER=real
+IMAGE_API_BASE_URL=https://your-image-api.example.com/v1
+IMAGE_API_KEY=your-api-key
+IMAGE_MODEL=your-image-model
+IMAGE_API_TIMEOUT_SECONDS=60
+IMAGE_API_RETRY_COUNT=2
+```
+
+The real provider posts to `{IMAGE_API_BASE_URL}/images/generations` and accepts responses containing either `data[0].b64_json` or `data[0].url`.
 
 ## Basic Checks
 
