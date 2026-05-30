@@ -52,7 +52,7 @@ def list_job_items(
     job_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list[GenerationItem]:
+) -> list[GenerationItemRead]:
     job = db.get(GenerationJob, job_id)
     if job is None or job.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -105,6 +105,7 @@ def download_job_zip(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No generated images found")
 
     archive = BytesIO()
+    added_count = 0
     with ZipFile(archive, "w", ZIP_DEFLATED) as zip_file:
         for item in items:
             if not item.result_image_path:
@@ -112,6 +113,10 @@ def download_job_zip(
             image_path = Path(item.result_image_path)
             if image_path.exists():
                 zip_file.write(image_path, arcname=f"{item.id}-{safe_filename(item.title)}.jpg")
+                added_count += 1
+
+    if added_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No generated image files found")
 
     archive.seek(0)
     filename = safe_filename(f"job-{job.id}-images.zip")
