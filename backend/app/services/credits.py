@@ -63,6 +63,25 @@ def spend_credits_for_job(db: Session, job: GenerationJob) -> int:
     return required_credits
 
 
+def spend_credit_for_item(db: Session, job: GenerationJob, item_id: int) -> bool:
+    credit = ensure_user_credit(db, job.user_id)
+    if credit.balance < IMAGE_CREDIT_COST:
+        return False
+
+    credit.balance -= IMAGE_CREDIT_COST
+    db.add(
+        CreditTransaction(
+            user_id=job.user_id,
+            job_id=job.id,
+            item_id=item_id,
+            amount=-IMAGE_CREDIT_COST,
+            type="debit",
+            description=f"Retry generation item #{item_id}",
+        )
+    )
+    return True
+
+
 def refund_item_credit(db: Session, job: GenerationJob, item_id: int, description: str | None = None) -> None:
     credit = ensure_user_credit(db, job.user_id)
     credit.balance += IMAGE_CREDIT_COST
