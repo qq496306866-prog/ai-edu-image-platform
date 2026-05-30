@@ -38,3 +38,31 @@ class ExcelUploadResponse(BaseModel):
     job_id: int
     total_count: int
     preview: list[ExcelPreviewItem]
+
+
+class GenerationJobRead(BaseModel):
+    id: int
+    status: str
+    total_count: int
+    success_count: int
+    failed_count: int
+    source_excel_path: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class GenerationItemRead(BaseModel):
+    id: int
+    job_id: int
+    title: str
+    prompt: str
+    reference_image_path: str | None = None
+    status: str
+    result_image_path: str | None = None
+    error_message: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
