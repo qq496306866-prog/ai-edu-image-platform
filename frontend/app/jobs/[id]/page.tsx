@@ -28,6 +28,10 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [retryingItemIds, setRetryingItemIds] = useState<number[]>([]);
 
+  const shouldPoll =
+    job?.status === "running" ||
+    items.some((item) => ["pending", "generating"].includes(item.status));
+
   useEffect(() => {
     if (!getAccessToken()) {
       window.location.href = "/login";
@@ -37,9 +41,24 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     loadJob();
   }, []);
 
-  async function loadJob() {
+  useEffect(() => {
+    if (!shouldPoll || previewUrl) {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      loadJob({ showLoading: false });
+    }, 2000);
+
+    return () => window.clearInterval(timerId);
+  }, [shouldPoll, previewUrl, params.id]);
+
+  async function loadJob(options: { showLoading?: boolean } = {}) {
+    const showLoading = options.showLoading ?? true;
     setError("");
-    setIsLoading(true);
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
       const [jobResponse, itemsResponse] = await Promise.all([
         authenticatedApiRequest<GenerationJob>(`/api/jobs/${params.id}`),
@@ -50,7 +69,9 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "无法加载任务详情");
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   }
 
@@ -178,7 +199,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             ) : null}
             <button
               className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-emerald-600"
-              onClick={loadJob}
+              onClick={() => loadJob()}
               type="button"
             >
               刷新
