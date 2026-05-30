@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import CreditTransaction, GenerationJob, UserCredit
+from app.models import CreditTransaction, GenerationJob, User, UserCredit
 
 INITIAL_CREDIT_BALANCE = 20
 IMAGE_CREDIT_COST = 1
@@ -28,6 +28,20 @@ def ensure_user_credit(db: Session, user_id: int) -> UserCredit:
 
 def create_initial_credit(db: Session, user_id: int) -> UserCredit:
     return ensure_user_credit(db, user_id)
+
+
+def grant_user_credits(db: Session, user: User, amount: int, description: str) -> UserCredit:
+    credit = ensure_user_credit(db, user.id)
+    credit.balance += amount
+    db.add(
+        CreditTransaction(
+            user_id=user.id,
+            amount=amount,
+            type="admin_grant",
+            description=description,
+        )
+    )
+    return credit
 
 
 def pending_item_count(db: Session, job_id: int) -> int:
