@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import {
   ApiUser,
+  CreditTransaction,
   GenerationJob,
   apiUrl,
   authenticatedApiRequest,
@@ -13,10 +14,13 @@ import {
 export default function DashboardPage() {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [jobs, setJobs] = useState<GenerationJob[]>([]);
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [error, setError] = useState("");
   const [jobsError, setJobsError] = useState("");
+  const [transactionsError, setTransactionsError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isJobsLoading, setIsJobsLoading] = useState(true);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -41,6 +45,7 @@ export default function DashboardPage() {
       .finally(() => setIsLoading(false));
 
     loadJobs();
+    loadTransactions();
   }, []);
 
   async function loadJobs() {
@@ -52,6 +57,20 @@ export default function DashboardPage() {
       setJobsError(err instanceof Error ? err.message : "无法加载任务列表");
     } finally {
       setIsJobsLoading(false);
+    }
+  }
+
+  async function loadTransactions() {
+    setTransactionsError("");
+    setIsTransactionsLoading(true);
+    try {
+      setTransactions(
+        await authenticatedApiRequest<CreditTransaction[]>("/api/credits/transactions"),
+      );
+    } catch (err) {
+      setTransactionsError(err instanceof Error ? err.message : "无法加载点数流水");
+    } finally {
+      setIsTransactionsLoading(false);
     }
   }
 
@@ -174,6 +193,69 @@ export default function DashboardPage() {
                         <Link className="font-semibold text-emerald-700" href={`/jobs/${job.id}`}>
                           查看详情
                         </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-slate-950">点数流水</h2>
+              <p className="mt-2 text-sm text-slate-600">查看最近 50 条点数发放、扣除和退款记录。</p>
+            </div>
+            <button
+              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-emerald-600"
+              onClick={loadTransactions}
+              type="button"
+            >
+              刷新
+            </button>
+          </div>
+
+          {isTransactionsLoading ? <p className="mt-5 text-slate-600">正在加载点数流水...</p> : null}
+          {transactionsError ? <p className="mt-5 text-sm text-red-600">{transactionsError}</p> : null}
+          {!isTransactionsLoading && !transactionsError && transactions.length === 0 ? (
+            <p className="mt-5 text-sm text-slate-600">暂无点数流水。</p>
+          ) : null}
+
+          {transactions.length > 0 ? (
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500">
+                    <th className="py-3 pr-4 font-medium">时间</th>
+                    <th className="py-3 pr-4 font-medium">类型</th>
+                    <th className="py-3 pr-4 font-medium">数量</th>
+                    <th className="py-3 pr-4 font-medium">说明</th>
+                    <th className="py-3 pr-4 font-medium">任务</th>
+                    <th className="py-3 pr-4 font-medium">条目</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((transaction) => (
+                    <tr className="border-b border-slate-100" key={transaction.id}>
+                      <td className="py-3 pr-4 text-slate-700">
+                        {new Date(transaction.created_at).toLocaleString()}
+                      </td>
+                      <td className="py-3 pr-4 text-slate-700">{transaction.type}</td>
+                      <td
+                        className={`py-3 pr-4 font-semibold ${
+                          transaction.amount > 0 ? "text-emerald-700" : "text-slate-950"
+                        }`}
+                      >
+                        {transaction.amount > 0 ? `+${transaction.amount}` : transaction.amount}
+                      </td>
+                      <td className="py-3 pr-4 text-slate-700">{transaction.description}</td>
+                      <td className="py-3 pr-4 text-slate-700">
+                        {transaction.job_id ? `#${transaction.job_id}` : "-"}
+                      </td>
+                      <td className="py-3 pr-4 text-slate-700">
+                        {transaction.item_id ? `#${transaction.item_id}` : "-"}
                       </td>
                     </tr>
                   ))}
