@@ -11,10 +11,22 @@ import {
   authenticatedApiRequest,
 } from "../lib/api";
 
+const JOB_PAGE_SIZE = 10;
+const JOB_STATUS_OPTIONS = [
+  { label: "全部", value: "all" },
+  { label: "待开始", value: "pending" },
+  { label: "生成中", value: "running" },
+  { label: "已完成", value: "completed" },
+  { label: "失败", value: "failed" },
+  { label: "已取消", value: "cancelled" },
+];
+
 export default function DashboardPage() {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [jobs, setJobs] = useState<GenerationJob[]>([]);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [jobStatusFilter, setJobStatusFilter] = useState("all");
+  const [jobsOffset, setJobsOffset] = useState(0);
   const [error, setError] = useState("");
   const [jobsError, setJobsError] = useState("");
   const [transactionsError, setTransactionsError] = useState("");
@@ -44,15 +56,28 @@ export default function DashboardPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "无法加载用户信息"))
       .finally(() => setIsLoading(false));
 
-    loadJobs();
     loadTransactions();
   }, []);
+
+  useEffect(() => {
+    if (!localStorage.getItem("access_token")) {
+      return;
+    }
+    loadJobs();
+  }, [jobStatusFilter, jobsOffset]);
 
   async function loadJobs() {
     setJobsError("");
     setIsJobsLoading(true);
     try {
-      setJobs(await authenticatedApiRequest<GenerationJob[]>("/api/jobs"));
+      const searchParams = new URLSearchParams({
+        limit: String(JOB_PAGE_SIZE),
+        offset: String(jobsOffset),
+      });
+      if (jobStatusFilter !== "all") {
+        searchParams.set("status", jobStatusFilter);
+      }
+      setJobs(await authenticatedApiRequest<GenerationJob[]>(`/api/jobs?${searchParams.toString()}`));
     } catch (err) {
       setJobsError(err instanceof Error ? err.message : "无法加载任务列表");
     } finally {
@@ -77,6 +102,11 @@ export default function DashboardPage() {
   function logout() {
     localStorage.removeItem("access_token");
     window.location.href = "/login";
+  }
+
+  function changeJobStatusFilter(nextStatus: string) {
+    setJobStatusFilter(nextStatus);
+    setJobsOffset(0);
   }
 
   return (
@@ -149,13 +179,30 @@ export default function DashboardPage() {
               <h2 className="text-xl font-bold text-slate-950">任务中心</h2>
               <p className="mt-2 text-sm text-slate-600">查看 Excel 上传后创建的批量生图任务。</p>
             </div>
-            <button
-              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-emerald-600"
-              onClick={loadJobs}
-              type="button"
-            >
-              刷新
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-sm text-slate-600" htmlFor="job-status-filter">
+                状态
+              </label>
+              <select
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                id="job-status-filter"
+                onChange={(event) => changeJobStatusFilter(event.target.value)}
+                value={jobStatusFilter}
+              >
+                {JOB_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-emerald-600"
+                onClick={loadJobs}
+                type="button"
+              >
+                刷新
+              </button>
+            </div>
           </div>
 
           {isJobsLoading ? <p className="mt-5 text-slate-600">正在加载任务...</p> : null}
@@ -200,6 +247,28 @@ export default function DashboardPage() {
               </table>
             </div>
           ) : null}
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+            <span>第 {Math.floor(jobsOffset / JOB_PAGE_SIZE) + 1} 页</span>
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-900 transition enabled:hover:border-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={jobsOffset === 0 || isJobsLoading}
+                onClick={() => setJobsOffset(Math.max(0, jobsOffset - JOB_PAGE_SIZE))}
+                type="button"
+              >
+                上一页
+              </button>
+              <button
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-900 transition enabled:hover:border-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={jobs.length < JOB_PAGE_SIZE || isJobsLoading}
+                onClick={() => setJobsOffset(jobsOffset + JOB_PAGE_SIZE)}
+                type="button"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
