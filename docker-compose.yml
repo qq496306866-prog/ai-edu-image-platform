@@ -32,6 +32,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/ai_edu_image_platform}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-496306866@qq.com}
       IMAGE_PROVIDER: ${IMAGE_PROVIDER:-mock}
       IMAGE_API_BASE_URL: ${IMAGE_API_BASE_URL:-}
       IMAGE_API_KEY: ${IMAGE_API_KEY:-}
