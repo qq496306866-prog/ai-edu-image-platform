@@ -19,6 +19,31 @@ class AdminCreditGrantRequest(BaseModel):
     description: str | None = Field(default=None, max_length=500)
 
 
+class ImageProviderStatusRead(BaseModel):
+    provider: str
+    image_api_base_url: str
+    image_model: str
+    has_api_key: bool
+    timeout_seconds: float
+    retry_count: int
+    mock_delay_seconds: float
+
+
+class ImageProviderTestRequest(BaseModel):
+    title: str = Field(default="Provider test", min_length=1, max_length=200)
+    prompt: str = Field(
+        default="Create a simple educational illustration for testing the image provider.",
+        min_length=1,
+        max_length=2000,
+    )
+
+
+class ImageProviderTestResponse(BaseModel):
+    provider: str
+    image_path: str
+    image_url: str
+
+
 class UserRead(BaseModel):
     id: int
     email: EmailStr
