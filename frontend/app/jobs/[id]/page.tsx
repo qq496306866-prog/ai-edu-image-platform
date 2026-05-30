@@ -26,6 +26,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [isStarting, setIsStarting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [retryingItemIds, setRetryingItemIds] = useState<number[]>([]);
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -117,6 +118,22 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
       setError(err instanceof Error ? err.message : "下载失败");
     } finally {
       setIsDownloading(false);
+    }
+  }
+
+  async function retryItem(itemId: number) {
+    setError("");
+    setRetryingItemIds((currentIds) => [...currentIds, itemId]);
+    try {
+      await authenticatedApiRequest<GenerationItem>(`/api/jobs/${params.id}/items/${itemId}/retry`, {
+        method: "POST",
+      });
+      await loadJob();
+      window.setTimeout(loadJob, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "无法重新生成条目");
+    } finally {
+      setRetryingItemIds((currentIds) => currentIds.filter((currentId) => currentId !== itemId));
     }
   }
 
@@ -213,7 +230,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-bold text-slate-950">任务条目</h2>
             <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="py-3 pr-4 font-medium">ID</th>
@@ -223,6 +240,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     <th className="py-3 pr-4 font-medium">参考图</th>
                     <th className="py-3 pr-4 font-medium">结果图</th>
                     <th className="py-3 pr-4 font-medium">错误</th>
+                    <th className="py-3 pr-4 font-medium">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -251,6 +269,20 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                         )}
                       </td>
                       <td className="py-3 pr-4 text-red-600">{item.error_message ?? "-"}</td>
+                      <td className="py-3 pr-4">
+                        {["failed", "cancelled", "completed"].includes(item.status) ? (
+                          <button
+                            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition hover:border-emerald-600 disabled:cursor-not-allowed disabled:text-slate-400"
+                            disabled={retryingItemIds.includes(item.id) || job?.status === "running"}
+                            onClick={() => retryItem(item.id)}
+                            type="button"
+                          >
+                            {retryingItemIds.includes(item.id) ? "提交中..." : "重新生成"}
+                          </button>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
