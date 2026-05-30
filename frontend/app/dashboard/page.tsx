@@ -8,6 +8,8 @@ import {
   ApiUser,
   CreditTransaction,
   GenerationJob,
+  ImageProviderStatus,
+  ImageProviderTestResponse,
   apiUrl,
   authenticatedApiRequest,
 } from "../lib/api";
@@ -31,15 +33,23 @@ export default function DashboardPage() {
   const [grantEmail, setGrantEmail] = useState("");
   const [grantAmount, setGrantAmount] = useState("10");
   const [grantDescription, setGrantDescription] = useState("");
+  const [providerStatus, setProviderStatus] = useState<ImageProviderStatus | null>(null);
+  const [providerTestTitle, setProviderTestTitle] = useState("Provider 测试图");
+  const [providerTestPrompt, setProviderTestPrompt] = useState("Create a clean educational image provider test card.");
+  const [providerTestImageUrl, setProviderTestImageUrl] = useState("");
   const [error, setError] = useState("");
   const [jobsError, setJobsError] = useState("");
   const [transactionsError, setTransactionsError] = useState("");
   const [grantError, setGrantError] = useState("");
   const [grantMessage, setGrantMessage] = useState("");
+  const [providerError, setProviderError] = useState("");
+  const [providerMessage, setProviderMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isJobsLoading, setIsJobsLoading] = useState(true);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [isGranting, setIsGranting] = useState(false);
+  const [isProviderLoading, setIsProviderLoading] = useState(false);
+  const [isTestingProvider, setIsTestingProvider] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -73,6 +83,13 @@ export default function DashboardPage() {
     loadJobs();
   }, [jobStatusFilter, jobsOffset]);
 
+  useEffect(() => {
+    if (user?.role !== "admin") {
+      return;
+    }
+    loadProviderStatus();
+  }, [user?.role]);
+
   async function loadJobs() {
     setJobsError("");
     setIsJobsLoading(true);
@@ -103,6 +120,18 @@ export default function DashboardPage() {
       setTransactionsError(err instanceof Error ? err.message : "无法加载点数流水");
     } finally {
       setIsTransactionsLoading(false);
+    }
+  }
+
+  async function loadProviderStatus() {
+    setProviderError("");
+    setIsProviderLoading(true);
+    try {
+      setProviderStatus(await authenticatedApiRequest<ImageProviderStatus>("/api/admin/image-provider"));
+    } catch (err) {
+      setProviderError(err instanceof Error ? err.message : "无法加载图片 Provider 配置");
+    } finally {
+      setIsProviderLoading(false);
     }
   }
 
@@ -142,6 +171,33 @@ export default function DashboardPage() {
       setGrantError(err instanceof Error ? err.message : "充值失败");
     } finally {
       setIsGranting(false);
+    }
+  }
+
+  async function testImageProvider(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setProviderError("");
+    setProviderMessage("");
+    setProviderTestImageUrl("");
+    setIsTestingProvider(true);
+    try {
+      const response = await authenticatedApiRequest<ImageProviderTestResponse>("/api/admin/image-provider/test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: providerTestTitle,
+          prompt: providerTestPrompt,
+        }),
+      });
+      setProviderTestImageUrl(`${apiUrl}${response.image_url}`);
+      setProviderMessage(`测试成功，使用 ${response.provider} provider 生成了一张图片。`);
+      loadProviderStatus();
+    } catch (err) {
+      setProviderError(err instanceof Error ? err.message : "图片 Provider 测试失败");
+    } finally {
+      setIsTestingProvider(false);
     }
   }
 
@@ -256,6 +312,104 @@ export default function DashboardPage() {
             </form>
             {grantError ? <p className="mt-4 text-sm text-red-600">{grantError}</p> : null}
             {grantMessage ? <p className="mt-4 text-sm text-emerald-700">{grantMessage}</p> : null}
+          </div>
+        ) : null}
+
+        {user?.role === "admin" ? (
+          <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-slate-950">图片 Provider</h2>
+                <p className="mt-2 text-sm text-slate-600">查看当前生图配置，并用当前 provider 生成一张测试图。</p>
+              </div>
+              <button
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-emerald-600"
+                disabled={isProviderLoading}
+                onClick={loadProviderStatus}
+                type="button"
+              >
+                刷新配置
+              </button>
+            </div>
+
+            {isProviderLoading ? <p className="mt-5 text-sm text-slate-600">正在加载 Provider 配置...</p> : null}
+            {providerStatus ? (
+              <dl className="mt-5 grid gap-4 text-sm md:grid-cols-3">
+                <div>
+                  <dt className="text-slate-500">Provider</dt>
+                  <dd className="mt-1 font-semibold text-slate-950">{providerStatus.provider}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">模型</dt>
+                  <dd className="mt-1 font-semibold text-slate-950">{providerStatus.image_model || "-"}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">API Key</dt>
+                  <dd className="mt-1 font-semibold text-slate-950">
+                    {providerStatus.has_api_key ? "已配置" : "未配置"}
+                  </dd>
+                </div>
+                <div className="md:col-span-3">
+                  <dt className="text-slate-500">API Base URL</dt>
+                  <dd className="mt-1 break-all font-semibold text-slate-950">
+                    {providerStatus.image_api_base_url || "-"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">超时</dt>
+                  <dd className="mt-1 font-semibold text-slate-950">{providerStatus.timeout_seconds}s</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">重试次数</dt>
+                  <dd className="mt-1 font-semibold text-slate-950">{providerStatus.retry_count}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Mock 延迟</dt>
+                  <dd className="mt-1 font-semibold text-slate-950">{providerStatus.mock_delay_seconds}s</dd>
+                </div>
+              </dl>
+            ) : null}
+
+            <form className="mt-6 grid gap-4 md:grid-cols-[1fr_2fr_auto]" onSubmit={testImageProvider}>
+              <label className="block">
+                <span className="text-sm text-slate-600">标题</span>
+                <input
+                  className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950"
+                  maxLength={200}
+                  onChange={(event) => setProviderTestTitle(event.target.value)}
+                  required
+                  type="text"
+                  value={providerTestTitle}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-slate-600">提示词</span>
+                <input
+                  className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950"
+                  maxLength={2000}
+                  onChange={(event) => setProviderTestPrompt(event.target.value)}
+                  required
+                  type="text"
+                  value={providerTestPrompt}
+                />
+              </label>
+              <button
+                className="self-end rounded-md bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={isTestingProvider}
+                type="submit"
+              >
+                {isTestingProvider ? "生成中..." : "测试生成"}
+              </button>
+            </form>
+            {providerError ? <p className="mt-4 text-sm text-red-600">{providerError}</p> : null}
+            {providerMessage ? <p className="mt-4 text-sm text-emerald-700">{providerMessage}</p> : null}
+            {providerTestImageUrl ? (
+              <img
+                alt="Provider test result"
+                className="mt-5 h-40 w-40 rounded-md border border-slate-200 object-cover"
+                src={providerTestImageUrl}
+              />
+            ) : null}
           </div>
         ) : null}
 
