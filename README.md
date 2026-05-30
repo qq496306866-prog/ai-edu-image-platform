@@ -13,6 +13,7 @@ AI 教辅批量生图平台第一版 MVP。
 - 基础点数系统：新用户 20 点，每张图消耗 1 点，失败自动返还
 - 控制台展示最近 50 条点数流水
 - 任务中心支持状态筛选和分页
+- 任务详情支持单条重新生成
 - 可通过 `IMAGE_PROVIDER=real` 切换到真实生图 API
 - 支持取消 pending/running 任务，并返还未开始生成条目的点数
 
@@ -84,6 +85,7 @@ Visit:
 8. Click a result thumbnail to preview the image.
 9. Click `下载 ZIP` to download generated images.
 10. Return to the dashboard to review recent credit transactions.
+11. Open a job detail page and click `重新生成` to retry one item.
 
 Generated images are stored under:
 
