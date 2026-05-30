@@ -22,6 +22,22 @@ export type CreditTransaction = {
   created_at: string;
 };
 
+export type ImageProviderStatus = {
+  provider: string;
+  image_api_base_url: string;
+  image_model: string;
+  has_api_key: boolean;
+  timeout_seconds: number;
+  retry_count: number;
+  mock_delay_seconds: number;
+};
+
+export type ImageProviderTestResponse = {
+  provider: string;
+  image_path: string;
+  image_url: string;
+};
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
