@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_current_user, get_db
 from app.models import GenerationItem, GenerationJob, User
 from app.schemas import GenerationItemRead, GenerationJobRead
-from app.services.credits import pending_item_count, refund_item_credit, spend_credits_for_job
+from app.services.credits import pending_item_count, refund_item_credit, spend_credit_for_item, spend_credits_for_job
 from app.services.files import result_image_url, safe_filename
-from app.worker import process_generation_job
+from app.worker import process_generation_item, process_generation_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -80,6 +80,38 @@ def list_job_items(
         .order_by(GenerationItem.id.asc())
     )
     return [_item_to_read(item) for item in db.scalars(statement).all()]
+
+
+@router.post("/{job_id}/items/{item_id}/retry", response_model=GenerationItemRead)
+def retry_job_item(
+    job_id: int,
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> GenerationItemRead:
+    job = db.get(GenerationJob, job_id)
+    if job is None or job.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.status == "running":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Job is currently running")
+
+    item = db.get(GenerationItem, item_id)
+    if item is None or item.job_id != job.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    if item.status not in {"failed", "cancelled", "completed"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item cannot be retried")
+    if not spend_credit_for_item(db, job, item.id):
+        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Insufficient credits")
+
+    item.status = "pending"
+    item.result_image_path = None
+    item.error_message = None
+    job.status = "running"
+    _update_job_counts(db, job)
+    db.commit()
+    db.refresh(item)
+    process_generation_item.delay(job.id, item.id)
+    return _item_to_read(item)
 
 
 @router.post("/{job_id}/start", response_model=GenerationJobRead)
