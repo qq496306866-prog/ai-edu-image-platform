@@ -13,6 +13,12 @@ class UserLogin(BaseModel):
     password: str
 
 
+class AdminCreditGrantRequest(BaseModel):
+    email: EmailStr
+    amount: int = Field(ge=1, le=10000)
+    description: str | None = Field(default=None, max_length=500)
+
+
 class UserRead(BaseModel):
     id: int
     email: EmailStr
