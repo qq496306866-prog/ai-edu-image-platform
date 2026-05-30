@@ -7,6 +7,7 @@ export type ApiUser = {
   id: number;
   email: string;
   role: string;
+  credit_balance: number;
   created_at: string;
 };
 
