@@ -32,6 +32,12 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/ai_edu_image_platform}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
+      IMAGE_PROVIDER: ${IMAGE_PROVIDER:-mock}
+      IMAGE_API_BASE_URL: ${IMAGE_API_BASE_URL:-}
+      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
+      IMAGE_MODEL: ${IMAGE_MODEL:-}
+      IMAGE_API_TIMEOUT_SECONDS: ${IMAGE_API_TIMEOUT_SECONDS:-60}
+      IMAGE_API_RETRY_COUNT: ${IMAGE_API_RETRY_COUNT:-2}
     ports:
       - "8000:8000"
     volumes:
@@ -51,6 +57,12 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      IMAGE_PROVIDER: ${IMAGE_PROVIDER:-mock}
+      IMAGE_API_BASE_URL: ${IMAGE_API_BASE_URL:-}
+      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
+      IMAGE_MODEL: ${IMAGE_MODEL:-}
+      IMAGE_API_TIMEOUT_SECONDS: ${IMAGE_API_TIMEOUT_SECONDS:-60}
+      IMAGE_API_RETRY_COUNT: ${IMAGE_API_RETRY_COUNT:-2}
     volumes:
       - ./storage:/app/storage
     depends_on:
