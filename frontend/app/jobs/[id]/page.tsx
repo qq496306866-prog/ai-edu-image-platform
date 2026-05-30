@@ -21,6 +21,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [items, setItems] = useState<GenerationItem[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -48,6 +49,22 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     }
   }
 
+  async function startJob() {
+    setError("");
+    setIsStarting(true);
+    try {
+      await authenticatedApiRequest<GenerationJob>(`/api/jobs/${params.id}/start`, {
+        method: "POST",
+      });
+      await loadJob();
+      window.setTimeout(loadJob, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "无法开始生成");
+    } finally {
+      setIsStarting(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
       <section className="mx-auto max-w-6xl">
@@ -57,6 +74,16 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             <h1 className="mt-2 text-3xl font-bold text-slate-950">任务详情</h1>
           </div>
           <div className="flex gap-3">
+            {job && ["pending", "failed"].includes(job.status) ? (
+              <button
+                className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={isStarting}
+                onClick={startJob}
+                type="button"
+              >
+                {isStarting ? "提交中..." : "开始生成"}
+              </button>
+            ) : null}
             <button
               className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-emerald-600"
               onClick={loadJob}
@@ -113,6 +140,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     <th className="py-3 pr-4 font-medium">标题</th>
                     <th className="py-3 pr-4 font-medium">提示词</th>
                     <th className="py-3 pr-4 font-medium">参考图</th>
+                    <th className="py-3 pr-4 font-medium">结果图</th>
                     <th className="py-3 pr-4 font-medium">错误</th>
                   </tr>
                 </thead>
@@ -124,6 +152,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                       <td className="py-3 pr-4 font-medium text-slate-950">{item.title}</td>
                       <td className="max-w-lg py-3 pr-4 text-slate-700">{item.prompt}</td>
                       <td className="py-3 pr-4 text-slate-600">{item.reference_image_path ?? "-"}</td>
+                      <td className="py-3 pr-4 text-slate-600">{item.result_image_path ?? "-"}</td>
                       <td className="py-3 pr-4 text-red-600">{item.error_message ?? "-"}</td>
                     </tr>
                   ))}
