@@ -6,21 +6,28 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.dependencies import get_current_user, get_db
 from app.models import User
 from app.schemas import Token, UserCreate, UserLogin, UserRead
+from app.services.credits import create_initial_credit, ensure_user_credit
 
 router = APIRouter(tags=["auth"])
 
 
+def _user_read(user: User, credit_balance: int) -> UserRead:
+    return UserRead.model_validate(user).model_copy(update={"credit_balance": credit_balance})
+
+
 @router.post("/api/auth/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def register(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+def register(payload: UserCreate, db: Session = Depends(get_db)) -> UserRead:
     existing_user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if existing_user is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
 
     user = User(email=payload.email.lower(), password_hash=hash_password(payload.password))
     db.add(user)
+    db.flush()
+    credit = create_initial_credit(db, user.id)
     db.commit()
     db.refresh(user)
-    return user
+    return _user_read(user, credit.balance)
 
 
 @router.post("/api/auth/login", response_model=Token)
@@ -33,5 +40,8 @@ def login(payload: UserLogin, db: Session = Depends(get_db)) -> Token:
 
 
 @router.get("/api/me", response_model=UserRead)
-def me(current_user: User = Depends(get_current_user)) -> User:
-    return current_user
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserRead:
+    credit = ensure_user_credit(db, current_user.id)
+    db.commit()
+    db.refresh(current_user)
+    return _user_read(current_user, credit.balance)
