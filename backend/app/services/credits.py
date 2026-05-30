@@ -63,7 +63,7 @@ def spend_credits_for_job(db: Session, job: GenerationJob) -> int:
     return required_credits
 
 
-def refund_item_credit(db: Session, job: GenerationJob, item_id: int) -> None:
+def refund_item_credit(db: Session, job: GenerationJob, item_id: int, description: str | None = None) -> None:
     credit = ensure_user_credit(db, job.user_id)
     credit.balance += IMAGE_CREDIT_COST
     db.add(
@@ -73,6 +73,6 @@ def refund_item_credit(db: Session, job: GenerationJob, item_id: int) -> None:
             item_id=item_id,
             amount=IMAGE_CREDIT_COST,
             type="refund",
-            description=f"Refund failed item #{item_id}",
+            description=description or f"Refund failed item #{item_id}",
         )
     )
