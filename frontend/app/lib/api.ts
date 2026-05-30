@@ -11,6 +11,17 @@ export type ApiUser = {
   created_at: string;
 };
 
+export type CreditTransaction = {
+  id: number;
+  user_id: number;
+  job_id: number | null;
+  item_id: number | null;
+  amount: number;
+  type: string;
+  description: string;
+  created_at: string;
+};
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
