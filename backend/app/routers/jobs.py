@@ -2,7 +2,7 @@ from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -25,14 +25,24 @@ def _update_job_counts(db: Session, job: GenerationJob) -> None:
 
 @router.get("", response_model=list[GenerationJobRead])
 def list_jobs(
+    status_filter: str | None = Query(default=None, alias="status"),
+    limit: int = Query(default=10, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[GenerationJob]:
+    allowed_statuses = {"pending", "running", "completed", "failed", "cancelled"}
+    if status_filter is not None and status_filter not in allowed_statuses:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid job status")
+
     statement = (
         select(GenerationJob)
         .where(GenerationJob.user_id == current_user.id)
-        .order_by(GenerationJob.created_at.desc())
     )
+    if status_filter is not None:
+        statement = statement.where(GenerationJob.status == status_filter)
+    statement = statement.order_by(GenerationJob.created_at.desc()).limit(limit).offset(offset)
+
     return list(db.scalars(statement).all())
 
 
