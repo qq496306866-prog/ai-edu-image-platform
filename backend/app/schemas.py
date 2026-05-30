@@ -25,3 +25,16 @@ class UserRead(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class ExcelPreviewItem(BaseModel):
+    row_number: int
+    title: str
+    prompt: str
+    reference_image_path: str | None = None
+
+
+class ExcelUploadResponse(BaseModel):
+    job_id: int
+    total_count: int
+    preview: list[ExcelPreviewItem]
