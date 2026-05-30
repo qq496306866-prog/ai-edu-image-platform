@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://redis:6379/0"
     celery_result_backend: str = "redis://redis:6379/1"
     backend_cors_origins: str = "http://localhost:3000"
+    secret_key: str = "change-me-in-production"
+    access_token_expire_minutes: int = 1440
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
