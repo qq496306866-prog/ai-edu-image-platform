@@ -5,6 +5,7 @@ from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models import GenerationItem, GenerationJob
 from app.providers.image_generation import get_image_generation_provider
+from app.services.credits import refund_item_credit
 
 settings = get_settings()
 
@@ -62,6 +63,7 @@ def process_generation_job(job_id: int) -> dict[str, int]:
             except Exception as exc:  # noqa: BLE001
                 item.status = "failed"
                 item.error_message = str(exc)
+                refund_item_credit(db, job, item.id)
                 failed_count += 1
 
             db.commit()
