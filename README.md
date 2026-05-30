@@ -11,6 +11,7 @@ AI 教辅批量生图平台第一版 MVP。
 - 结果图片在线预览
 - 生成图片 ZIP 下载
 - 基础点数系统：新用户 20 点，每张图消耗 1 点，失败自动返还
+- 控制台展示最近 50 条点数流水
 - 可通过 `IMAGE_PROVIDER=real` 切换到真实生图 API
 - 支持取消 pending/running 任务，并返还未开始生成条目的点数
 
@@ -81,6 +82,7 @@ Visit:
 7. Refresh until the job is completed.
 8. Click a result thumbnail to preview the image.
 9. Click `下载 ZIP` to download generated images.
+10. Return to the dashboard to review recent credit transactions.
 
 Generated images are stored under:
 
