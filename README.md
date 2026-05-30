@@ -109,6 +109,12 @@ IMAGE_API_RETRY_COUNT=2
 
 The real provider posts to `{IMAGE_API_BASE_URL}/images/generations` and accepts responses containing either `data[0].b64_json` or `data[0].url`.
 
+For cancellation testing with the mock provider, slow each mock image down:
+
+```env
+MOCK_IMAGE_DELAY_SECONDS=3
+```
+
 ## Basic Checks
 
 After startup, verify the backend can reach PostgreSQL and Redis:
