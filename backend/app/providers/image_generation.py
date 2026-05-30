@@ -37,6 +37,9 @@ class MockImageGenerationProvider(ImageGenerationProvider):
         reference_image_path: str | None,
     ) -> str:
         settings = get_settings()
+        if settings.mock_image_delay_seconds > 0:
+            sleep(settings.mock_image_delay_seconds)
+
         output_dir = Path(settings.generated_dir) / str(job_id)
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / f"{item_id}.jpg"
