@@ -149,6 +149,8 @@ export default function DashboardPage() {
                     <th className="py-3 pr-4 font-medium">ID</th>
                     <th className="py-3 pr-4 font-medium">状态</th>
                     <th className="py-3 pr-4 font-medium">数量</th>
+                    <th className="py-3 pr-4 font-medium">成功</th>
+                    <th className="py-3 pr-4 font-medium">失败</th>
                     <th className="py-3 pr-4 font-medium">创建时间</th>
                     <th className="py-3 pr-4 font-medium">操作</th>
                   </tr>
@@ -159,6 +161,8 @@ export default function DashboardPage() {
                       <td className="py-3 pr-4 font-semibold text-slate-950">#{job.id}</td>
                       <td className="py-3 pr-4 text-slate-700">{job.status}</td>
                       <td className="py-3 pr-4 text-slate-700">{job.total_count}</td>
+                      <td className="py-3 pr-4 text-slate-700">{job.success_count}</td>
+                      <td className="py-3 pr-4 text-slate-700">{job.failed_count}</td>
                       <td className="py-3 pr-4 text-slate-700">
                         {new Date(job.created_at).toLocaleString()}
                       </td>
