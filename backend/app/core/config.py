@@ -12,7 +12,9 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 1440
     upload_dir: str = "storage/uploads"
+    generated_dir: str = "storage/generated"
     max_upload_size_mb: int = 20
+    image_provider: str = "mock"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
