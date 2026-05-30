@@ -10,11 +10,17 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_current_user, get_db
 from app.models import GenerationItem, GenerationJob, User
 from app.schemas import GenerationItemRead, GenerationJobRead
-from app.services.credits import pending_item_count, spend_credits_for_job
+from app.services.credits import pending_item_count, refund_item_credit, spend_credits_for_job
 from app.services.files import result_image_url, safe_filename
 from app.worker import process_generation_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+
+def _update_job_counts(db: Session, job: GenerationJob) -> None:
+    items = list(db.scalars(select(GenerationItem).where(GenerationItem.job_id == job.id)).all())
+    job.success_count = sum(1 for item in items if item.status == "completed")
+    job.failed_count = sum(1 for item in items if item.status == "failed")
 
 
 @router.get("", response_model=list[GenerationJobRead])
@@ -90,6 +96,41 @@ def start_job(
     db.commit()
     db.refresh(job)
     process_generation_job.delay(job.id)
+    return job
+
+
+@router.post("/{job_id}/cancel", response_model=GenerationJobRead)
+def cancel_job(
+    job_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> GenerationJob:
+    job = db.get(GenerationJob, job_id)
+    if job is None or job.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.status not in {"pending", "running"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Job cannot be cancelled")
+
+    should_refund = job.status == "running"
+    pending_items = list(
+        db.scalars(
+            select(GenerationItem)
+            .where(GenerationItem.job_id == job.id)
+            .where(GenerationItem.status == "pending")
+            .order_by(GenerationItem.id.asc())
+        ).all()
+    )
+
+    for item in pending_items:
+        item.status = "cancelled"
+        item.error_message = None
+        if should_refund:
+            refund_item_credit(db, job, item.id, description=f"Refund cancelled item #{item.id}")
+
+    job.status = "cancelled"
+    _update_job_counts(db, job)
+    db.commit()
+    db.refresh(job)
     return job
 
 
