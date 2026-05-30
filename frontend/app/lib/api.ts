@@ -34,15 +34,20 @@ export function getAccessToken(): string | null {
   return localStorage.getItem("access_token");
 }
 
-export async function authenticatedApiRequest<T>(path: string): Promise<T> {
+export async function authenticatedApiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const token = getAccessToken();
   if (!token) {
     throw new Error("请先登录");
   }
 
   const response = await fetch(`${apiUrl}${path}`, {
+    ...options,
     headers: {
       Authorization: `Bearer ${token}`,
+      ...options.headers,
     },
   });
 
