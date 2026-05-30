@@ -16,6 +16,8 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     generation_jobs: Mapped[list["GenerationJob"]] = relationship(back_populates="user")
+    credits: Mapped["UserCredit"] = relationship(back_populates="user", uselist=False)
+    credit_transactions: Mapped[list["CreditTransaction"]] = relationship(back_populates="user")
 
 
 class GenerationJob(Base):
@@ -63,3 +65,33 @@ class GenerationItem(Base):
     )
 
     job: Mapped[GenerationJob] = relationship(back_populates="items")
+
+
+class UserCredit(Base):
+    __tablename__ = "user_credits"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    balance: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship(back_populates="credits")
+
+
+class CreditTransaction(Base):
+    __tablename__ = "credit_transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    job_id: Mapped[int | None] = mapped_column(ForeignKey("generation_jobs.id"), nullable=True, index=True)
+    item_id: Mapped[int | None] = mapped_column(ForeignKey("generation_items.id"), nullable=True, index=True)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="credit_transactions")
