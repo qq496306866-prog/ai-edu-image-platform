@@ -24,6 +24,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
@@ -65,6 +66,21 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
       setError(err instanceof Error ? err.message : "无法开始生成");
     } finally {
       setIsStarting(false);
+    }
+  }
+
+  async function cancelJob() {
+    setError("");
+    setIsCancelling(true);
+    try {
+      await authenticatedApiRequest<GenerationJob>(`/api/jobs/${params.id}/cancel`, {
+        method: "POST",
+      });
+      await loadJob();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "无法取消任务");
+    } finally {
+      setIsCancelling(false);
     }
   }
 
@@ -121,6 +137,16 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                 type="button"
               >
                 {isStarting ? "提交中..." : "开始生成"}
+              </button>
+            ) : null}
+            {job && ["pending", "running"].includes(job.status) ? (
+              <button
+                className="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:border-red-500 disabled:cursor-not-allowed disabled:text-slate-400"
+                disabled={isCancelling}
+                onClick={cancelJob}
+                type="button"
+              >
+                {isCancelling ? "取消中..." : "取消任务"}
               </button>
             ) : null}
             {job && job.success_count > 0 ? (
