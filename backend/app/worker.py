@@ -46,21 +46,39 @@ def process_generation_job(job_id: int) -> dict[str, int]:
         success_count = 0
         failed_count = 0
         for item in items:
+            db.refresh(job)
+            if job.status == "cancelled":
+                break
+
             item.status = "generating"
             item.error_message = None
             db.commit()
 
             try:
-                item.result_image_path = provider.generate(
+                result_image_path = provider.generate(
                     job_id=job.id,
                     item_id=item.id,
                     title=item.title,
                     prompt=item.prompt,
                     reference_image_path=item.reference_image_path,
                 )
-                item.status = "completed"
-                success_count += 1
+                db.refresh(job)
+                if job.status == "cancelled":
+                    item.status = "completed"
+                    item.result_image_path = result_image_path
+                else:
+                    item.status = "completed"
+                    item.result_image_path = result_image_path
+                    success_count += 1
             except Exception as exc:  # noqa: BLE001
+                db.refresh(job)
+                if job.status == "cancelled":
+                    item.status = "cancelled"
+                    item.error_message = None
+                    refund_item_credit(db, job, item.id, description=f"Refund cancelled item #{item.id}")
+                    db.commit()
+                    break
+
                 item.status = "failed"
                 item.error_message = str(exc)
                 refund_item_credit(db, job, item.id)
@@ -68,9 +86,11 @@ def process_generation_job(job_id: int) -> dict[str, int]:
 
             db.commit()
 
-        job.success_count = success_count
-        job.failed_count = failed_count
-        job.status = "completed" if failed_count == 0 else "failed"
+        items = list(db.scalars(select(GenerationItem).where(GenerationItem.job_id == job.id)).all())
+        job.success_count = sum(1 for item in items if item.status == "completed")
+        job.failed_count = sum(1 for item in items if item.status == "failed")
+        if job.status != "cancelled":
+            job.status = "completed" if job.failed_count == 0 else "failed"
         db.commit()
         return {"job_id": job.id, "processed": len(items)}
     finally:
