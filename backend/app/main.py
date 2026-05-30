@@ -3,11 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from redis import Redis
 from sqlalchemy import text
 
-from app import models  # noqa: F401
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
+from app import models  # noqa: F401
 from app.routers.auth import router as auth_router
+from app.routers.uploads import router as uploads_router
 
 settings = get_settings()
 
@@ -22,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(uploads_router)
 
 
 @app.on_event("startup")
