@@ -13,3 +13,7 @@ npm-debug.log*
 
 storage/
 *.log
+
+.docker-cli/
+*.msi
+*Installer.exe
