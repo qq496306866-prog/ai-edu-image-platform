@@ -16,6 +16,7 @@ AI 教辅批量生图平台第一版 MVP。
 - 任务详情支持单条重新生成
 - 管理员可在控制台按邮箱给用户充值点数
 - 可通过 `IMAGE_PROVIDER=real` 切换到真实生图 API
+- 管理员可在控制台查看当前图片 Provider 配置，并发起测试生成
 - 支持取消 pending/running 任务，并返还未开始生成条目的点数
 
 ## Tech Stack
@@ -120,6 +121,8 @@ IMAGE_API_RETRY_COUNT=2
 ```
 
 The real provider posts to `{IMAGE_API_BASE_URL}/images/generations` and accepts responses containing either `data[0].b64_json` or `data[0].url`.
+
+Admin users can open the dashboard to inspect the active provider configuration and run a one-image provider test. API keys are never displayed in the UI; the dashboard only shows whether a key is configured.
 
 For cancellation testing with the mock provider, slow each mock image down:
 
