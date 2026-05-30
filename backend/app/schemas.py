@@ -68,3 +68,16 @@ class GenerationItemRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class CreditTransactionRead(BaseModel):
+    id: int
+    user_id: int
+    job_id: int | None = None
+    item_id: int | None = None
+    amount: int
+    type: str
+    description: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
