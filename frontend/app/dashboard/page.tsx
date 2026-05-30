@@ -84,6 +84,19 @@ export default function DashboardPage() {
             </dl>
           ) : null}
         </div>
+
+        <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-950">Excel 上传</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            上传包含标题和提示词字段的 .xlsx 文件，系统会创建批量生图任务并返回前 10 行预览。
+          </p>
+          <Link
+            className="mt-5 inline-block rounded-md bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            href="/upload"
+          >
+            上传 Excel
+          </Link>
+        </div>
       </section>
     </main>
   );
