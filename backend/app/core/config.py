@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     backend_cors_origins: str = "http://localhost:3000"
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 1440
+    admin_emails: str = ""
     upload_dir: str = "storage/uploads"
     generated_dir: str = "storage/generated"
     max_upload_size_mb: int = 20
