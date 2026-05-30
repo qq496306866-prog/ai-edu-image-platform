@@ -131,6 +131,7 @@ export default function UploadPage() {
                     <th className="py-3 pr-4 font-medium">标题</th>
                     <th className="py-3 pr-4 font-medium">提示词</th>
                     <th className="py-3 pr-4 font-medium">参考图</th>
+                    <th className="py-3 pr-4 font-medium">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -140,6 +141,11 @@ export default function UploadPage() {
                       <td className="py-3 pr-4 font-medium text-slate-950">{item.title}</td>
                       <td className="max-w-md py-3 pr-4 text-slate-700">{item.prompt}</td>
                       <td className="py-3 pr-4 text-slate-600">{item.reference_image_path ?? "-"}</td>
+                      <td className="py-3 pr-4">
+                        <Link className="font-semibold text-emerald-700" href={`/jobs/${result.job_id}`}>
+                          查看任务
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
