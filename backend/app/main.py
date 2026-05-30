@@ -4,7 +4,9 @@ from redis import Redis
 from sqlalchemy import text
 
 from app.core.config import get_settings
+from app.db.base import Base
 from app.db.session import engine
+from app.routers.auth import router as auth_router
 
 settings = get_settings()
 
@@ -17,6 +19,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/health", status_code=status.HTTP_200_OK)
