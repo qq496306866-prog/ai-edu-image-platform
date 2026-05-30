@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     backend_cors_origins: str = "http://localhost:3000"
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 1440
+    upload_dir: str = "storage/uploads"
+    max_upload_size_mb: int = 20
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
