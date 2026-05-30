@@ -14,6 +14,7 @@ AI 教辅批量生图平台第一版 MVP。
 - 控制台展示最近 50 条点数流水
 - 任务中心支持状态筛选和分页
 - 任务详情支持单条重新生成
+- 管理员可在控制台按邮箱给用户充值点数
 - 可通过 `IMAGE_PROVIDER=real` 切换到真实生图 API
 - 支持取消 pending/running 任务，并返还未开始生成条目的点数
 
@@ -72,6 +73,12 @@ Visit:
 - Frontend: http://localhost:3000
 - Backend health check: http://localhost:8000/health
 - API docs: http://localhost:8000/docs
+
+To enable the admin credit recharge panel, set `ADMIN_EMAILS` to one or more comma-separated account emails:
+
+```env
+ADMIN_EMAILS=496306866@qq.com
+```
 
 ## Basic Flow
 
