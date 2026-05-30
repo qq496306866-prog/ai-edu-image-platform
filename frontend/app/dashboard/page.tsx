@@ -88,7 +88,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user ? (
-            <dl className="grid gap-4 sm:grid-cols-3">
+            <dl className="grid gap-4 sm:grid-cols-4">
               <div>
                 <dt className="text-sm text-slate-500">邮箱</dt>
                 <dd className="mt-1 font-semibold text-slate-950">{user.email}</dd>
@@ -96,6 +96,10 @@ export default function DashboardPage() {
               <div>
                 <dt className="text-sm text-slate-500">角色</dt>
                 <dd className="mt-1 font-semibold text-slate-950">{user.role}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-slate-500">可用点数</dt>
+                <dd className="mt-1 font-semibold text-emerald-700">{user.credit_balance}</dd>
               </div>
               <div>
                 <dt className="text-sm text-slate-500">注册时间</dt>
