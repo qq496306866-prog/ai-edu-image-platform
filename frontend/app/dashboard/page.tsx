@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
 import {
@@ -27,12 +28,18 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [jobStatusFilter, setJobStatusFilter] = useState("all");
   const [jobsOffset, setJobsOffset] = useState(0);
+  const [grantEmail, setGrantEmail] = useState("");
+  const [grantAmount, setGrantAmount] = useState("10");
+  const [grantDescription, setGrantDescription] = useState("");
   const [error, setError] = useState("");
   const [jobsError, setJobsError] = useState("");
   const [transactionsError, setTransactionsError] = useState("");
+  const [grantError, setGrantError] = useState("");
+  const [grantMessage, setGrantMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isJobsLoading, setIsJobsLoading] = useState(true);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
+  const [isGranting, setIsGranting] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -109,6 +116,35 @@ export default function DashboardPage() {
     setJobsOffset(0);
   }
 
+  async function grantCredits(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setGrantError("");
+    setGrantMessage("");
+    setIsGranting(true);
+    try {
+      const targetUser = await authenticatedApiRequest<ApiUser>("/api/admin/credits/grant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: grantEmail,
+          amount: Number(grantAmount),
+          description: grantDescription || undefined,
+        }),
+      });
+      setGrantMessage(`${targetUser.email} 已充值 ${grantAmount} 点，当前余额 ${targetUser.credit_balance}。`);
+      if (user?.email === targetUser.email) {
+        setUser(targetUser);
+        loadTransactions();
+      }
+    } catch (err) {
+      setGrantError(err instanceof Error ? err.message : "充值失败");
+    } finally {
+      setIsGranting(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
       <section className="mx-auto max-w-5xl">
@@ -172,6 +208,56 @@ export default function DashboardPage() {
             上传 Excel
           </Link>
         </div>
+
+        {user?.role === "admin" ? (
+          <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-950">点数充值</h2>
+            <form className="mt-5 grid gap-4 md:grid-cols-[1.5fr_120px_1.5fr_auto]" onSubmit={grantCredits}>
+              <label className="block">
+                <span className="text-sm text-slate-600">用户邮箱</span>
+                <input
+                  className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950"
+                  onChange={(event) => setGrantEmail(event.target.value)}
+                  placeholder="user@example.com"
+                  required
+                  type="email"
+                  value={grantEmail}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-slate-600">点数</span>
+                <input
+                  className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950"
+                  max="10000"
+                  min="1"
+                  onChange={(event) => setGrantAmount(event.target.value)}
+                  required
+                  type="number"
+                  value={grantAmount}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-slate-600">说明</span>
+                <input
+                  className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950"
+                  onChange={(event) => setGrantDescription(event.target.value)}
+                  placeholder="测试充值"
+                  type="text"
+                  value={grantDescription}
+                />
+              </label>
+              <button
+                className="self-end rounded-md bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={isGranting}
+                type="submit"
+              >
+                {isGranting ? "充值中..." : "充值"}
+              </button>
+            </form>
+            {grantError ? <p className="mt-4 text-sm text-red-600">{grantError}</p> : null}
+            {grantMessage ? <p className="mt-4 text-sm text-emerald-700">{grantMessage}</p> : null}
+          </div>
+        ) : null}
 
         <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
