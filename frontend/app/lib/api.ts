@@ -78,6 +78,7 @@ export type GenerationItem = {
   reference_image_path: string | null;
   status: string;
   result_image_path: string | null;
+  result_image_url: string | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
