@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_current_user, get_db
 from app.models import GenerationItem, GenerationJob, User
 from app.schemas import GenerationItemRead, GenerationJobRead
+from app.services.credits import pending_item_count, spend_credits_for_job
 from app.services.files import result_image_url, safe_filename
 from app.worker import process_generation_job
 
@@ -76,6 +77,14 @@ def start_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     if job.status not in {"pending", "failed"}:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Job has already started")
+
+    required_credits = pending_item_count(db, job.id)
+    if required_credits <= 0:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No pending items to generate")
+
+    spent_credits = spend_credits_for_job(db, job)
+    if spent_credits != required_credits:
+        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Insufficient credits")
 
     job.status = "running"
     db.commit()
