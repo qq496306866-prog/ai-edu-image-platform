@@ -62,6 +62,7 @@ class GenerationItemRead(BaseModel):
     status: str
     result_image_path: str | None = None
     error_message: str | None = None
+    result_image_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
