@@ -10,6 +10,7 @@ AI 教辅批量生图平台第一版 MVP。
 - Celery worker 使用 Mock provider 生成占位图片
 - 结果图片在线预览
 - 生成图片 ZIP 下载
+- 基础点数系统：新用户 20 点，每张图消耗 1 点，失败自动返还
 
 ## Tech Stack
 
@@ -74,9 +75,10 @@ Visit:
 3. Go to the dashboard and upload `sample_upload.xlsx`.
 4. Open the created job.
 5. Click `开始生成`.
-6. Refresh until the job is completed.
-7. Click a result thumbnail to preview the image.
-8. Click `下载 ZIP` to download generated images.
+6. The system deducts 1 credit for each pending image.
+7. Refresh until the job is completed.
+8. Click a result thumbnail to preview the image.
+9. Click `下载 ZIP` to download generated images.
 
 Generated images are stored under:
 
