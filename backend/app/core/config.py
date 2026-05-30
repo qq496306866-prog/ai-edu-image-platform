@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     generated_dir: str = "storage/generated"
     max_upload_size_mb: int = 20
     image_provider: str = "mock"
+    image_api_base_url: str = ""
+    image_api_key: str = ""
+    image_model: str = ""
+    image_api_timeout_seconds: float = 60.0
+    image_api_retry_count: int = 2
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
