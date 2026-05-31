@@ -22,6 +22,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [items, setItems] = useState<GenerationItem[]>([]);
   const [error, setError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [itemStatusFilter, setItemStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -31,6 +32,13 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const shouldPoll =
     job?.status === "running" ||
     items.some((item) => ["pending", "generating"].includes(item.status));
+  const generatedItemCount = items.filter((item) => item.result_image_url).length;
+  const visibleItems =
+    itemStatusFilter === "all"
+      ? items
+      : itemStatusFilter === "with_results"
+        ? items.filter((item) => item.result_image_url)
+        : items.filter((item) => item.status === itemStatusFilter);
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -249,7 +257,30 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
         {items.length > 0 ? (
           <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-950">任务条目</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-slate-950">任务条目</h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  已生成 {generatedItemCount} / {items.length} 张图片。
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                状态
+                <select
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                  onChange={(event) => setItemStatusFilter(event.target.value)}
+                  value={itemStatusFilter}
+                >
+                  <option value="all">全部</option>
+                  <option value="with_results">已生成图片</option>
+                  <option value="pending">待生成</option>
+                  <option value="generating">生成中</option>
+                  <option value="completed">已完成</option>
+                  <option value="failed">失败</option>
+                  <option value="cancelled">已取消</option>
+                </select>
+              </label>
+            </div>
             <div className="mt-5 overflow-x-auto">
               <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
                 <thead>
@@ -265,7 +296,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {visibleItems.map((item) => (
                     <tr className="border-b border-slate-100" key={item.id}>
                       <td className="py-3 pr-4 font-semibold text-slate-950">#{item.id}</td>
                       <td className="py-3 pr-4 text-slate-700">{item.status}</td>
@@ -308,6 +339,9 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   ))}
                 </tbody>
               </table>
+              {visibleItems.length === 0 ? (
+                <p className="py-6 text-sm text-slate-600">当前筛选条件下没有条目。</p>
+              ) : null}
             </div>
           </div>
         ) : null}
