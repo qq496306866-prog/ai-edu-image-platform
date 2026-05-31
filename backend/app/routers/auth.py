@@ -84,11 +84,24 @@ def grant_credits(
 @router.get("/api/admin/image-provider", response_model=ImageProviderStatusRead)
 def image_provider_status(_current_admin: User = Depends(get_current_admin_user)) -> ImageProviderStatusRead:
     settings = get_settings()
+    missing_settings: list[str] = []
+    if settings.image_provider == "real":
+        if not settings.image_api_base_url:
+            missing_settings.append("IMAGE_API_BASE_URL")
+        if not settings.image_api_key:
+            missing_settings.append("IMAGE_API_KEY")
+        if not settings.image_model:
+            missing_settings.append("IMAGE_MODEL")
+    elif settings.image_provider != "mock":
+        missing_settings.append("IMAGE_PROVIDER")
+
     return ImageProviderStatusRead(
         provider=settings.image_provider,
         image_api_base_url=settings.image_api_base_url,
         image_model=settings.image_model,
         has_api_key=bool(settings.image_api_key),
+        is_ready=len(missing_settings) == 0,
+        missing_settings=missing_settings,
         timeout_seconds=settings.image_api_timeout_seconds,
         retry_count=settings.image_api_retry_count,
         mock_delay_seconds=settings.mock_image_delay_seconds,
