@@ -40,6 +40,12 @@ services:
       IMAGE_API_TIMEOUT_SECONDS: ${IMAGE_API_TIMEOUT_SECONDS:-60}
       IMAGE_API_RETRY_COUNT: ${IMAGE_API_RETRY_COUNT:-2}
       MOCK_IMAGE_DELAY_SECONDS: ${MOCK_IMAGE_DELAY_SECONDS:-0}
+      HTTP_PROXY: ${HTTP_PROXY:-http://host.docker.internal:7890}
+      HTTPS_PROXY: ${HTTPS_PROXY:-http://host.docker.internal:7890}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis}
+      http_proxy: ${HTTP_PROXY:-http://host.docker.internal:7890}
+      https_proxy: ${HTTPS_PROXY:-http://host.docker.internal:7890}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,db,redis}
     ports:
       - "8000:8000"
     volumes:
@@ -66,6 +72,12 @@ services:
       IMAGE_API_TIMEOUT_SECONDS: ${IMAGE_API_TIMEOUT_SECONDS:-60}
       IMAGE_API_RETRY_COUNT: ${IMAGE_API_RETRY_COUNT:-2}
       MOCK_IMAGE_DELAY_SECONDS: ${MOCK_IMAGE_DELAY_SECONDS:-0}
+      HTTP_PROXY: ${HTTP_PROXY:-http://host.docker.internal:7890}
+      HTTPS_PROXY: ${HTTPS_PROXY:-http://host.docker.internal:7890}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis}
+      http_proxy: ${HTTP_PROXY:-http://host.docker.internal:7890}
+      https_proxy: ${HTTPS_PROXY:-http://host.docker.internal:7890}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,db,redis}
     volumes:
       - ./storage:/app/storage
     depends_on:
