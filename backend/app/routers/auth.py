@@ -30,6 +30,22 @@ def _user_read(user: User, credit_balance: int) -> UserRead:
     return UserRead.model_validate(user).model_copy(update={"credit_balance": credit_balance})
 
 
+def _image_provider_missing_settings() -> list[str]:
+    settings = get_settings()
+    missing_settings: list[str] = []
+    if settings.image_provider == "real":
+        if not settings.image_api_base_url:
+            missing_settings.append("IMAGE_API_BASE_URL")
+        if not settings.image_api_key:
+            missing_settings.append("IMAGE_API_KEY")
+        if not settings.image_model:
+            missing_settings.append("IMAGE_MODEL")
+    elif settings.image_provider != "mock":
+        missing_settings.append("IMAGE_PROVIDER")
+
+    return missing_settings
+
+
 @router.post("/api/auth/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, db: Session = Depends(get_db)) -> UserRead:
     existing_user = db.scalar(select(User).where(User.email == payload.email.lower()))
@@ -84,16 +100,7 @@ def grant_credits(
 @router.get("/api/admin/image-provider", response_model=ImageProviderStatusRead)
 def image_provider_status(_current_admin: User = Depends(get_current_admin_user)) -> ImageProviderStatusRead:
     settings = get_settings()
-    missing_settings: list[str] = []
-    if settings.image_provider == "real":
-        if not settings.image_api_base_url:
-            missing_settings.append("IMAGE_API_BASE_URL")
-        if not settings.image_api_key:
-            missing_settings.append("IMAGE_API_KEY")
-        if not settings.image_model:
-            missing_settings.append("IMAGE_MODEL")
-    elif settings.image_provider != "mock":
-        missing_settings.append("IMAGE_PROVIDER")
+    missing_settings = _image_provider_missing_settings()
 
     return ImageProviderStatusRead(
         provider=settings.image_provider,
@@ -114,6 +121,13 @@ def test_image_provider(
     _current_admin: User = Depends(get_current_admin_user),
 ) -> ImageProviderTestResponse:
     settings = get_settings()
+    missing_settings = _image_provider_missing_settings()
+    if missing_settings:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Image provider is not ready. Missing settings: {', '.join(missing_settings)}",
+        )
+
     provider = get_image_generation_provider()
     item_id = int(time() * 1000)
     try:
