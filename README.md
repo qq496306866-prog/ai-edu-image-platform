@@ -123,6 +123,7 @@ IMAGE_API_RETRY_COUNT=2
 The real provider posts to `{IMAGE_API_BASE_URL}/images/generations` and accepts responses containing either `data[0].b64_json` or `data[0].url`.
 
 Admin users can open the dashboard to inspect the active provider configuration and run a one-image provider test. API keys are never displayed in the UI; the dashboard only shows whether a key is configured.
+When `IMAGE_PROVIDER=real`, the dashboard also lists missing required settings before you start a real generation test.
 
 For cancellation testing with the mock provider, slow each mock image down:
 
