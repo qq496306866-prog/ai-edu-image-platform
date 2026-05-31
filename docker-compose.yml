@@ -1,0 +1,101 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_edu_image_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/ai_edu_image_platform}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-496306866@qq.com}
+      IMAGE_PROVIDER: ${IMAGE_PROVIDER:-mock}
+      IMAGE_API_BASE_URL: ${IMAGE_API_BASE_URL:-}
+      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
+      IMAGE_MODEL: ${IMAGE_MODEL:-}
+      IMAGE_API_TIMEOUT_SECONDS: ${IMAGE_API_TIMEOUT_SECONDS:-60}
+      IMAGE_API_RETRY_COUNT: ${IMAGE_API_RETRY_COUNT:-2}
+      MOCK_IMAGE_DELAY_SECONDS: ${MOCK_IMAGE_DELAY_SECONDS:-0}
+      HTTP_PROXY: ${HTTP_PROXY:-http://host.docker.internal:7890}
+      HTTPS_PROXY: ${HTTPS_PROXY:-http://host.docker.internal:7890}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis}
+      http_proxy: ${HTTP_PROXY:-http://host.docker.internal:7890}
+      https_proxy: ${HTTPS_PROXY:-http://host.docker.internal:7890}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,db,redis}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/ai_edu_image_platform}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      IMAGE_PROVIDER: ${IMAGE_PROVIDER:-mock}
+      IMAGE_API_BASE_URL: ${IMAGE_API_BASE_URL:-}
+      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
+      IMAGE_MODEL: ${IMAGE_MODEL:-}
+      IMAGE_API_TIMEOUT_SECONDS: ${IMAGE_API_TIMEOUT_SECONDS:-60}
+      IMAGE_API_RETRY_COUNT: ${IMAGE_API_RETRY_COUNT:-2}
+      MOCK_IMAGE_DELAY_SECONDS: ${MOCK_IMAGE_DELAY_SECONDS:-0}
+      HTTP_PROXY: ${HTTP_PROXY:-http://host.docker.internal:7890}
+      HTTPS_PROXY: ${HTTPS_PROXY:-http://host.docker.internal:7890}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,db,redis}
+      http_proxy: ${HTTP_PROXY:-http://host.docker.internal:7890}
+      https_proxy: ${HTTPS_PROXY:-http://host.docker.internal:7890}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,db,redis}
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
