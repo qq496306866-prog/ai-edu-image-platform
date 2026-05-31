@@ -27,6 +27,8 @@ export type ImageProviderStatus = {
   image_api_base_url: string;
   image_model: string;
   has_api_key: boolean;
+  is_ready: boolean;
+  missing_settings: string[];
   timeout_seconds: number;
   retry_count: number;
   mock_delay_seconds: number;
