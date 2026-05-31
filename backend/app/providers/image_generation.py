@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from base64 import b64decode
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from time import sleep
@@ -8,8 +9,106 @@ from urllib.parse import urljoin
 
 import httpx
 from PIL import Image, ImageDraw, ImageFont
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.db.session import SessionLocal
+from app.models import AppSetting
+
+
+IMAGE_PROVIDER_SETTING_KEYS = {
+    "image_provider",
+    "image_api_base_url",
+    "image_api_key",
+    "image_model",
+    "image_api_timeout_seconds",
+    "image_api_retry_count",
+    "mock_image_delay_seconds",
+}
+
+
+@dataclass(frozen=True)
+class ImageProviderConfig:
+    image_provider: str
+    image_api_base_url: str
+    image_api_key: str
+    image_model: str
+    image_api_timeout_seconds: float
+    image_api_retry_count: int
+    mock_image_delay_seconds: float
+    source: str
+
+
+def _settings_map(db: Session) -> dict[str, str]:
+    rows = db.scalars(select(AppSetting).where(AppSetting.key.in_(IMAGE_PROVIDER_SETTING_KEYS))).all()
+    return {row.key: row.value for row in rows}
+
+
+def get_effective_image_provider_config(db: Session | None = None) -> ImageProviderConfig:
+    settings = get_settings()
+    values = {
+        "image_provider": settings.image_provider,
+        "image_api_base_url": settings.image_api_base_url,
+        "image_api_key": settings.image_api_key,
+        "image_model": settings.image_model,
+        "image_api_timeout_seconds": str(settings.image_api_timeout_seconds),
+        "image_api_retry_count": str(settings.image_api_retry_count),
+        "mock_image_delay_seconds": str(settings.mock_image_delay_seconds),
+    }
+
+    source = "env"
+    if db is not None:
+        persisted_values = _settings_map(db)
+        if persisted_values:
+            values.update(persisted_values)
+            source = "web"
+
+    return ImageProviderConfig(
+        image_provider=values["image_provider"],
+        image_api_base_url=values["image_api_base_url"],
+        image_api_key=values["image_api_key"],
+        image_model=values["image_model"],
+        image_api_timeout_seconds=float(values["image_api_timeout_seconds"] or 60),
+        image_api_retry_count=int(values["image_api_retry_count"] or 0),
+        mock_image_delay_seconds=float(values["mock_image_delay_seconds"] or 0),
+        source=source,
+    )
+
+
+def upsert_image_provider_config(
+    db: Session,
+    *,
+    image_provider: str,
+    image_api_base_url: str,
+    image_api_key: str | None,
+    image_model: str,
+    image_api_timeout_seconds: float,
+    image_api_retry_count: int,
+    mock_image_delay_seconds: float,
+) -> ImageProviderConfig:
+    existing_values = _settings_map(db)
+    next_values = {
+        "image_provider": image_provider,
+        "image_api_base_url": image_api_base_url,
+        "image_api_key": existing_values.get("image_api_key", get_settings().image_api_key)
+        if image_api_key is None
+        else image_api_key,
+        "image_model": image_model,
+        "image_api_timeout_seconds": str(image_api_timeout_seconds),
+        "image_api_retry_count": str(image_api_retry_count),
+        "mock_image_delay_seconds": str(mock_image_delay_seconds),
+    }
+
+    for key, value in next_values.items():
+        setting = db.get(AppSetting, key)
+        if setting is None:
+            db.add(AppSetting(key=key, value=value))
+        else:
+            setting.value = value
+
+    db.flush()
+    return get_effective_image_provider_config(db)
 
 
 class ImageGenerationProvider(ABC):
@@ -27,6 +126,9 @@ class ImageGenerationProvider(ABC):
 
 
 class MockImageGenerationProvider(ImageGenerationProvider):
+    def __init__(self, config: ImageProviderConfig | None = None) -> None:
+        self.config = config
+
     def generate(
         self,
         *,
@@ -37,8 +139,9 @@ class MockImageGenerationProvider(ImageGenerationProvider):
         reference_image_path: str | None,
     ) -> str:
         settings = get_settings()
-        if settings.mock_image_delay_seconds > 0:
-            sleep(settings.mock_image_delay_seconds)
+        config = self.config or get_effective_image_provider_config()
+        if config.mock_image_delay_seconds > 0:
+            sleep(config.mock_image_delay_seconds)
 
         output_dir = Path(settings.generated_dir) / str(job_id)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -68,6 +171,9 @@ class MockImageGenerationProvider(ImageGenerationProvider):
 
 
 class RealImageGenerationProvider(ImageGenerationProvider):
+    def __init__(self, config: ImageProviderConfig | None = None) -> None:
+        self.config = config
+
     def generate(
         self,
         *,
@@ -78,7 +184,8 @@ class RealImageGenerationProvider(ImageGenerationProvider):
         reference_image_path: str | None,
     ) -> str:
         settings = get_settings()
-        if not settings.image_api_base_url or not settings.image_api_key or not settings.image_model:
+        config = self.config or get_effective_image_provider_config()
+        if not config.image_api_base_url or not config.image_api_key or not config.image_model:
             raise ValueError("IMAGE_API_BASE_URL, IMAGE_API_KEY, and IMAGE_MODEL are required")
 
         output_dir = Path(settings.generated_dir) / str(job_id)
@@ -86,27 +193,22 @@ class RealImageGenerationProvider(ImageGenerationProvider):
         output_path = output_dir / f"{item_id}.jpg"
 
         payload = {
-            "model": settings.image_model,
+            "model": config.image_model,
             "prompt": self._build_prompt(title, prompt, reference_image_path),
             "n": 1,
             "size": "1024x1024",
         }
-        endpoint = urljoin(settings.image_api_base_url.rstrip("/") + "/", "images/generations")
+        endpoint = urljoin(config.image_api_base_url.rstrip("/") + "/", "images/generations")
 
         last_error: Exception | None = None
-        for attempt in range(settings.image_api_retry_count + 1):
+        for attempt in range(config.image_api_retry_count + 1):
             try:
-                image_bytes = self._request_image(
-                    endpoint,
-                    payload,
-                    settings.image_api_key,
-                    settings.image_api_timeout_seconds,
-                )
+                image_bytes = self._request_image(endpoint, payload, config.image_api_key, config.image_api_timeout_seconds)
                 self._save_jpeg(image_bytes, output_path)
                 return str(output_path)
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
-                if attempt < settings.image_api_retry_count:
+                if attempt < config.image_api_retry_count:
                     sleep(2**attempt)
 
         raise RuntimeError(f"Image API failed: {last_error}") from last_error
@@ -156,10 +258,13 @@ class RealImageGenerationProvider(ImageGenerationProvider):
             image.convert("RGB").save(output_path, format="JPEG", quality=92)
 
 
-def get_image_generation_provider() -> ImageGenerationProvider:
-    settings = get_settings()
-    if settings.image_provider == "mock":
-        return MockImageGenerationProvider()
-    if settings.image_provider == "real":
-        return RealImageGenerationProvider()
+def get_image_generation_provider(config: ImageProviderConfig | None = None) -> ImageGenerationProvider:
+    if config is None:
+        with SessionLocal() as db:
+            config = get_effective_image_provider_config(db)
+
+    if config.image_provider == "mock":
+        return MockImageGenerationProvider(config)
+    if config.image_provider == "real":
+        return RealImageGenerationProvider(config)
     raise ValueError("IMAGE_PROVIDER must be mock or real")
