@@ -24,6 +24,8 @@ class ImageProviderStatusRead(BaseModel):
     image_api_base_url: str
     image_model: str
     has_api_key: bool
+    is_ready: bool
+    missing_settings: list[str] = Field(default_factory=list)
     timeout_seconds: float
     retry_count: int
     mock_delay_seconds: float
