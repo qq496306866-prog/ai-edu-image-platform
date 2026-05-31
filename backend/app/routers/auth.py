@@ -4,14 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
 from app.core.security import create_access_token, hash_password, verify_password
 from app.dependencies import get_current_admin_user, get_current_user, get_db, sync_configured_admin_role
 from app.models import CreditTransaction, User
-from app.providers.image_generation import get_image_generation_provider
+from app.providers.image_generation import (
+    ImageProviderConfig,
+    get_effective_image_provider_config,
+    get_image_generation_provider,
+    upsert_image_provider_config,
+)
 from app.schemas import (
     AdminCreditGrantRequest,
     CreditTransactionRead,
+    ImageProviderConfigUpdate,
     ImageProviderStatusRead,
     ImageProviderTestRequest,
     ImageProviderTestResponse,
@@ -30,20 +35,35 @@ def _user_read(user: User, credit_balance: int) -> UserRead:
     return UserRead.model_validate(user).model_copy(update={"credit_balance": credit_balance})
 
 
-def _image_provider_missing_settings() -> list[str]:
-    settings = get_settings()
+def _image_provider_missing_settings(config: ImageProviderConfig) -> list[str]:
     missing_settings: list[str] = []
-    if settings.image_provider == "real":
-        if not settings.image_api_base_url:
+    if config.image_provider == "real":
+        if not config.image_api_base_url:
             missing_settings.append("IMAGE_API_BASE_URL")
-        if not settings.image_api_key:
+        if not config.image_api_key:
             missing_settings.append("IMAGE_API_KEY")
-        if not settings.image_model:
+        if not config.image_model:
             missing_settings.append("IMAGE_MODEL")
-    elif settings.image_provider != "mock":
+    elif config.image_provider != "mock":
         missing_settings.append("IMAGE_PROVIDER")
 
     return missing_settings
+
+
+def _image_provider_status_read(config: ImageProviderConfig) -> ImageProviderStatusRead:
+    missing_settings = _image_provider_missing_settings(config)
+    return ImageProviderStatusRead(
+        provider=config.image_provider,
+        image_api_base_url=config.image_api_base_url,
+        image_model=config.image_model,
+        has_api_key=bool(config.image_api_key),
+        source=config.source,
+        is_ready=len(missing_settings) == 0,
+        missing_settings=missing_settings,
+        timeout_seconds=config.image_api_timeout_seconds,
+        retry_count=config.image_api_retry_count,
+        mock_delay_seconds=config.mock_image_delay_seconds,
+    )
 
 
 @router.post("/api/auth/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -98,37 +118,48 @@ def grant_credits(
 
 
 @router.get("/api/admin/image-provider", response_model=ImageProviderStatusRead)
-def image_provider_status(_current_admin: User = Depends(get_current_admin_user)) -> ImageProviderStatusRead:
-    settings = get_settings()
-    missing_settings = _image_provider_missing_settings()
+def image_provider_status(
+    _current_admin: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+) -> ImageProviderStatusRead:
+    return _image_provider_status_read(get_effective_image_provider_config(db))
 
-    return ImageProviderStatusRead(
-        provider=settings.image_provider,
-        image_api_base_url=settings.image_api_base_url,
-        image_model=settings.image_model,
-        has_api_key=bool(settings.image_api_key),
-        is_ready=len(missing_settings) == 0,
-        missing_settings=missing_settings,
-        timeout_seconds=settings.image_api_timeout_seconds,
-        retry_count=settings.image_api_retry_count,
-        mock_delay_seconds=settings.mock_image_delay_seconds,
+
+@router.put("/api/admin/image-provider", response_model=ImageProviderStatusRead)
+def update_image_provider_config(
+    payload: ImageProviderConfigUpdate,
+    _current_admin: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+) -> ImageProviderStatusRead:
+    config = upsert_image_provider_config(
+        db,
+        image_provider=payload.provider,
+        image_api_base_url=payload.image_api_base_url.strip(),
+        image_api_key=payload.image_api_key.strip() if payload.image_api_key is not None else None,
+        image_model=payload.image_model.strip(),
+        image_api_timeout_seconds=payload.timeout_seconds,
+        image_api_retry_count=payload.retry_count,
+        mock_image_delay_seconds=payload.mock_delay_seconds,
     )
+    db.commit()
+    return _image_provider_status_read(config)
 
 
 @router.post("/api/admin/image-provider/test", response_model=ImageProviderTestResponse)
 def test_image_provider(
     payload: ImageProviderTestRequest,
     _current_admin: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
 ) -> ImageProviderTestResponse:
-    settings = get_settings()
-    missing_settings = _image_provider_missing_settings()
+    config = get_effective_image_provider_config(db)
+    missing_settings = _image_provider_missing_settings(config)
     if missing_settings:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Image provider is not ready. Missing settings: {', '.join(missing_settings)}",
         )
 
-    provider = get_image_generation_provider()
+    provider = get_image_generation_provider(config)
     item_id = int(time() * 1000)
     try:
         image_path = provider.generate(
@@ -145,7 +176,7 @@ def test_image_provider(
     if image_url is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Generated image URL is unavailable")
 
-    return ImageProviderTestResponse(provider=settings.image_provider, image_path=image_path, image_url=image_url)
+    return ImageProviderTestResponse(provider=config.image_provider, image_path=image_path, image_url=image_url)
 
 
 @router.get("/api/credits/transactions", response_model=list[CreditTransactionRead])
